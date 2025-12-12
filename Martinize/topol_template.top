@@ -1,0 +1,20 @@
+#include "Martini.itp" ;Specify the path in your environment
+#include "molecule_0.itp";Specify the path in your environment
+#include "DOPE.itp";Specify the path in your environment
+#include "DOPG.itp";Specify the path in your environment
+
+[ system ]
+; name
+INSANE! Membrane UpperLeaflet>DOPE:DOPG=3.0:1.0 LowerLeaflet>DOPE:DOPG=3.0:1.0
+
+
+[ molecules ]
+; name  number
+DOPE           168
+DOPG            56
+DOPE           168
+DOPG            56
+molecule_0       1
+W           18347
+NA               453
+CL               347
