@@ -1,0 +1,47 @@
+#peptide coarse-graining
+martinize2 -f {name of your pdb}.pdb -x peptide_colab_cg.pdb -o peptide_colab_cg.top -ff martini3001 -elastic -ss {structure of your peptide}
+
+#creation of membrane
+insane -o DOPEDOPG_membrane.gro -p topol.top -x 12 -y 12 -z 20 -l DOPE:3 -l DOPG:1 -sol W:100
+gmx editconf -f DOPEDOPG_membrane_no_water.gro -o DOPEDOPG_membrane_no_water_center.gro -center 0 0 0
+gmx make_ndx -f DOPEDOPG_membrane.gro -o DOPEDOPG_membrane_no_water_index.ndx (select other than water)
+gmx editconf -f DOPEDOPG_membrane.gro -o DOPEDOPG_membrane_no_water.gro -n DOPEDOPG_membrane_no_water_index.ndx (select other than water)
+
+#combine peptide and membrane
+gmx insert-molecules -f DOPEDOPG_membrane_no_water_center.gro -ci peptide_colab_cg.pdb -o peptide_merged_no_water.gro -ip peptide_position.dat -nmol 1 -try 1000
+insane -f peptide_merged_no_water.gro -o peptide_merged_water_no_ion.gro -x 12 -y 12 -z 20 -sol W
+(Please change your topol.top to fit your peptide_merged_water_no_ion.gro)
+
+#add NaCl
+gmx grompp -f ions.mdp -c peptide_merged_water_no_ion.gro -r peptide_merged_water_no_ion.gro -p topol.top -o ions.tpr -maxwarn 1
+gmx genion -s ions.tpr -o peptide_merged_neutralized.gro -p topol.top -pname NA -pq 1 -nname CL -nq -1 -conc 0.200 -seed 54321 -neutral (select water)
+
+#energy minimization
+gmx grompp -f minimization.mdp -c peptide_merged_neutralized.gro -p topol.top -r peptide_merged_neutralized.gro -o minimization.tpr -maxwarn 2
+gmx mdrun -v -deffnm minimization -ntmpi 1 -nt 16
+gmx grompp -f minimization.mdp -c minimization.gro -p topol.top -r peptide_merged_neutralized.gro -o minimization2.tpr -maxwarn 2
+gmx mdrun -v -deffnm minimization2 -ntmpi 1 -nt 16
+
+#preparation of index
+gmx make_ndx -f peptide_merged_neutralized.gro -o index.ndx (select system)
+python3 {path of your environment}/create_index.py peptide_merged_neutralized.gro
+
+#equilibration
+gmx grompp -f equilibration.mdp -o equilibration.tpr -c minimization2.gro -r peptide_merged_neutralized.gro -p topol.top -n index.ndx -maxwarn 3
+gmx mdrun -v -deffnm equilibration -nb gpu
+gmx grompp -f equilibration2.mdp -o equilibration2.tpr -c equilibration.gro -r peptide_merged_neutralized.gro -p topol.top -n index.ndx -maxwarn 3
+gmx mdrun -v -deffnm equilibration2 -nb gpu
+gmx grompp -f equilibration3.mdp -o equilibration3.tpr -c equilibration2.gro -r peptide_merged_neutralized.gro -p topol.top -n index.ndx -maxwarn 3
+gmx mdrun -v -deffnm equilibration3 -nb gpu
+gmx grompp -f equilibration4.mdp -o equilibration4.tpr -c equilibration3.gro -r peptide_merged_neutralized.gro -p topol.top -n index.ndx -maxwarn 3
+gmx mdrun -v -deffnm equilibration4 -nb gpu
+gmx grompp -f equilibration5.mdp -o equilibration5.tpr -c equilibration4.gro -r peptide_merged_neutralized.gro -p topol.top -n index.ndx -maxwarn 3
+gmx mdrun -v -deffnm equilibration5 -nb gpu
+
+#production simulation with voltage
+gmx grompp -f md_voltage.mdp -o md_voltage.tpr -c equilibration5.gro -r peptide_merged_neutralized.gro -p topol.top -n index.ndx -maxwarn 5
+gmx mdrun -v -deffnm md_voltage -nb gpu
+
+#production simulation without voltage
+gmx grompp -f md_no_voltage.mdp -o md_no_voltage.tpr -c equilibration5.gro -r peptide_merged_neutralized.gro -p topol.top -n index.ndx -maxwarn 5
+gmx mdrun -v -deffnm md_no_voltage -nb gpu
