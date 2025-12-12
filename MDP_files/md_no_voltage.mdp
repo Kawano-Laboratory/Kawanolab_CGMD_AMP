@@ -1,8 +1,8 @@
 define                  = -DBILAYER_LIPIDHEAD_FC=10
 integrator               = md
 dt                       = 0.025
-;nsteps                   = 2000000 ; 50 nanoseconds
-nsteps                   = 800000 ; 20 nanoseconds
+nsteps                   = 4000000 ; 100 nanoseconds
+;nsteps                   = 800000 ; 20 nanoseconds
 ;nstcomm                  = 100
 nstcomm                  = 0
 comm-grps                = Solvent Bilayer Protein
